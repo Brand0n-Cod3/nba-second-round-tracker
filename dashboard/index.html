@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Second-Round Draft Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --navy: #0B1629;
+    --surface: #14203A;
+    --surface-2: #1B2A47;
+    --border: #26375A;
+    --amber: #F5A623;
+    --amber-dim: #C4831B;
+    --text: #EAF0FB;
+    --text-dim: #8DA0C0;
+    --text-mute: #5F739A;
+    --green: #3DD68C;
+    --red: #E5604D;
+    --blue: #4A90E2;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--navy);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 32px 24px 64px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .eyebrow {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 2px;
+    color: var(--amber);
+    font-size: 15px;
+  }
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 56px;
+    line-height: 0.95;
+    letter-spacing: 1px;
+    margin: 4px 0 8px;
+  }
+  .sub { color: var(--text-dim); font-size: 14px; max-width: 620px; }
+  .tabs {
+    display: flex; gap: 2px; margin: 32px 0 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    font-family: 'Bebas Neue', sans-serif; letter-spacing: 1px; font-size: 18px;
+    padding: 10px 18px; background: none; border: none; color: var(--text-mute);
+    cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .tab.active { color: var(--amber); border-bottom-color: var(--amber); }
+  .tab:hover:not(.active) { color: var(--text); }
+  .pane { display: none; }
+  .pane.active { display: block; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 12px; margin-bottom: 32px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .kpi .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-mute); margin-bottom: 8px; }
+  .kpi .val { font-family: 'Bebas Neue', sans-serif; font-size: 40px; line-height: 1; }
+  .kpi .val.amber { color: var(--amber); }
+  .kpi .val.green { color: var(--green); }
+  .kpi .foot { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+  .section-label {
+    font-family: 'Bebas Neue', sans-serif; letter-spacing: 1px; font-size: 20px;
+    color: var(--text); margin: 32px 0 14px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .chart-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; height: 300px; position: relative; }
+  .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+  .filters label { font-size: 12px; color: var(--text-dim); margin-right: 2px; }
+  select {
+    background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px; font-size: 13px; font-family: inherit;
+  }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left; padding: 12px 14px; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.6px; color: var(--text-mute); background: var(--surface-2);
+    position: sticky; top: 0; white-space: nowrap;
+  }
+  th.num, td.num { text-align: right; }
+  td { padding: 11px 14px; border-top: 1px solid var(--border); white-space: nowrap; }
+  tr:hover td { background: var(--surface); }
+  .name-cell { font-weight: 600; }
+  .pick-tag { color: var(--text-dim); font-size: 12px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; display: inline-block; }
+  .b-Star { background: rgba(245,166,35,0.15); color: var(--amber); }
+  .b-Key.contributor, .b-Key { background: rgba(61,214,140,0.13); color: var(--green); }
+  .b-Rotation { background: rgba(74,144,226,0.15); color: var(--blue); }
+  .b-Fringe { background: rgba(141,160,192,0.12); color: var(--text-dim); }
+  .b-Bust { background: rgba(229,96,77,0.13); color: var(--red); }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .card h3 { font-family: 'Bebas Neue', sans-serif; letter-spacing: 1px; font-size: 18px; margin-bottom: 14px; font-weight: 400; }
+  .team-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 13px; }
+  .team-row .tn { width: 42px; color: var(--text); font-weight: 600; }
+  .team-row .bar-bg { flex: 1; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+  .team-row .bar { height: 100%; background: var(--amber); border-radius: 3px; }
+  .team-row .tv { width: 64px; text-align: right; color: var(--text-dim); font-size: 12px; }
+  .steal { display: flex; gap: 14px; align-items: flex-start; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+  .steal .pk { font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: var(--amber); width: 54px; flex-shrink: 0; }
+  .steal.bust .pk { color: var(--red); }
+  .steal .nm { font-weight: 600; }
+  .steal .mt { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
+  .empty { color: var(--text-mute); font-size: 13px; padding: 20px; text-align: center; }
+  .header-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 40px; align-items: start; }
+  .header-right { display: flex; flex-direction: column; gap: 14px; padding-top: 6px; }
+  .blurb { border-left: 2px solid var(--amber); padding: 2px 0 2px 14px; }
+  .blurb-label {
+    font-family: 'Bebas Neue', sans-serif; letter-spacing: 1.5px; font-size: 14px;
+    color: var(--amber); margin-bottom: 3px;
+  }
+  .blurb p { font-size: 13px; color: var(--text-dim); line-height: 1.45; }
+  @media (max-width: 720px) {
+    .header-grid { grid-template-columns: 1fr; gap: 24px; }
+  }
+  .verdict-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 14px; margin-bottom: 28px; }
+  .verdict { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .v-claim { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-dim); margin-bottom: 10px; }
+  .v-tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px; margin-bottom: 10px; }
+  .v-yes { background: rgba(61,214,140,0.14); color: var(--green); }
+  .v-part { background: rgba(245,166,35,0.15); color: var(--amber); }
+  .verdict p { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+  .essay { max-width: 760px; }
+  .essay p { color: var(--text-dim); font-size: 14px; line-height: 1.7; margin-bottom: 16px; }
+  .essay p:first-child { color: var(--text); }
+  @media (max-width: 640px) { h1 { font-size: 40px; } .two-col { grid-template-columns: 1fr; } body { padding: 20px 14px 48px; } }
+</style>
+</head>
+<body>
+  <div class="header-grid">
+    <div class="header-left">
+      <h1>NBA SECOND ROUND DRAFT ANALYSIS</h1>
+      <p class="sub" id="subtitle">A study of all <span id="pickCount"></span> NBA second-round draft picks from 2000 to 2024 and how their careers turned out in the long run.</p>
+    </div>
+    <div class="header-right">
+      <div class="blurb">
+        <div class="blurb-label">Research Question</div>
+        <p>Are second-round draft picks worth it in the long run?</p>
+      </div>
+      <div class="blurb">
+        <div class="blurb-label">Hypothesis</div>
+        <p>The second round is primarily comprised of players who end up doing very little in the league, with few exceptions that are usually international or right after the first round.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-pane="overview">Overview</button>
+    <button class="tab" data-pane="players">Player Explorer</button>
+    <button class="tab" data-pane="teams">Team Intelligence</button>
+    <button class="tab" data-pane="steals">Steals</button>
+    <button class="tab" data-pane="conclusion">Conclusion</button>
+  </div>
+
+  <div class="pane active" id="overview">
+    <div class="kpis" id="kpis"></div>
+    <div class="section-label">Hit Rate by Pick Band</div>
+    <div class="chart-box"><canvas id="bandChart"></canvas></div>
+    <div class="section-label">Career Tier Distribution</div>
+    <div class="chart-box"><canvas id="tierChart"></canvas></div>
+    <div class="section-label">Average Win Shares by Season — the trajectory shape</div>
+    <div class="chart-box"><canvas id="arcChart"></canvas></div>
+  </div>
+
+  <div class="pane" id="players">
+    <div class="filters">
+      <span><label>Era</label>
+      <select id="fEra"><option value="all">All</option><option>2000s</option><option>2010s</option><option>2020s</option></select></span>
+      <span><label>Tier</label>
+      <select id="fTier"><option value="all">All</option><option>Star</option><option>Key contributor</option><option>Rotation</option><option>Fringe</option><option>Bust</option></select></span>
+      <span><label>Pick band</label>
+      <select id="fBand"><option value="all">All</option><option>31-40</option><option>41-50</option><option>51-60</option></select></span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Player</th><th>Yr</th><th>Team</th><th class="num">GP</th><th class="num">Szns</th>
+          <th class="num">PTS</th><th class="num">REB</th><th class="num">AST</th>
+          <th class="num">Peak BPM</th><th class="num">WS</th><th>Tier</th><th>Arc</th>
+        </tr></thead>
+        <tbody id="playerBody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:var(--text-mute)">Showing <span id="rowCount">0</span> players · sorted by career Win Shares · per-game stats are games-weighted career averages</div>
+  </div>
+
+  <div class="pane" id="teams">
+    <div class="section-label">Draft value vs. volume — who finds diamonds in the rough</div>
+    <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;max-width:640px">
+      Each dot is a franchise. Right = more second-round picks used. Up = more career Win Shares those picks produced. Teams above the line get more value than their pick count would predict — the real second-round scouts. <span style="color:var(--text-mute)">WS reflects career output leaguewide, not only for the drafting team.</span>
+    </p>
+    <div class="chart-box" style="height:440px"><canvas id="teamScatter"></canvas></div>
+    <div id="teamDetail" style="margin-top:20px"></div>
+  </div>
+
+  <div class="pane" id="steals">
+    <div class="section-label">The 10 biggest steals — 2000–2024</div>
+    <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;max-width:640px">
+      The second round's franchise-altering finds, ranked by career Win Shares. These are the exceptions the hypothesis is about — the rare hits in a round that mostly misses.
+    </p>
+    <div id="stealList"></div>
+  </div>
+
+  <div class="pane" id="conclusion">
+    <div class="section-label">Conclusion — revisiting the hypothesis</div>
+    <div class="essay" id="conclusionEssay"></div>
+  </div>
+
+<script src="data.js"></script>
+<script>
+// ---------- helpers ----------
+const HIT_TIERS = new Set(['Star', 'Key contributor', 'Rotation']);
+const isHit = p => HIT_TIERS.has(p.tier);
+const BANDS = ['31-40', '41-50', '51-60'];
+const TIERS = ['Star', 'Key contributor', 'Rotation', 'Fringe', 'Bust'];
+const TIER_COLORS = {
+  'Star': '#F5A623', 'Key contributor': '#3DD68C', 'Rotation': '#4A90E2',
+  'Fringe': '#8DA0C0', 'Bust': '#E5604D'
+};
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+// ---------- KPIs ----------
+function renderKpis() {
+  const total = players.length;
+  const hits = players.filter(isHit).length;
+  const stars = players.filter(p => p.tier === 'Star').length;
+  const hitRate = total ? Math.round(hits / total * 100) : 0;
+  const starRate = total ? (stars / total * 100).toFixed(1) : 0;
+  const avgGp = hits ? Math.round(players.filter(isHit).reduce((s, p) => s + p.gp, 0) / hits) : 0;
+
+  // best band by hit rate
+  let bestBand = '—', bestRate = -1;
+  BANDS.forEach(b => {
+    const inB = players.filter(p => p.band === b);
+    if (inB.length) {
+      const r = inB.filter(isHit).length / inB.length;
+      if (r > bestRate) { bestRate = r; bestBand = b; }
+    }
+  });
+
+  const kpis = [
+    { label: 'Picks analyzed', val: total, cls: '' },
+    { label: 'Hit rate', val: hitRate + '%', cls: 'amber', foot: 'Rotation player or better' },
+    { label: 'Star rate', val: starRate + '%', cls: 'green', foot: 'Became a star' },
+    { label: 'Avg GP (hits)', val: avgGp, cls: '', foot: 'Career games' },
+    { label: 'Best band', val: bestBand, cls: 'amber', foot: (bestRate * 100).toFixed(0) + '% hit rate' },
+  ];
+  document.getElementById('kpis').innerHTML = kpis.map(k =>
+    `<div class="kpi"><div class="label">${k.label}</div><div class="val ${k.cls}">${k.val}</div>${k.foot ? `<div class="foot">${k.foot}</div>` : ''}</div>`
+  ).join('');
+}
+
+// ---------- charts ----------
+function bandHitData() {
+  return BANDS.map(b => {
+    const inB = players.filter(p => p.band === b);
+    return inB.length ? Math.round(inB.filter(isHit).length / inB.length * 100) : 0;
+  });
+}
+function tierDistData() {
+  // % of each tier within each band
+  return TIERS.map(t => ({
+    label: t,
+    data: BANDS.map(b => {
+      const inB = players.filter(p => p.band === b);
+      return inB.length ? +(inB.filter(p => p.tier === t).length / inB.length * 100).toFixed(1) : 0;
+    }),
+    backgroundColor: TIER_COLORS[t],
+  }));
+}
+function arcData() {
+  // avg WS at each season index (1..10), per hit tier
+  const tiers = ['Star', 'Key contributor', 'Rotation'];
+  return tiers.map(t => {
+    const ps = players.filter(p => p.tier === t && p.arc.length);
+    const pts = [];
+    for (let i = 0; i < 10; i++) {
+      const vals = ps.map(p => p.arc[i]).filter(v => v !== undefined);
+      pts.push(vals.length ? +(vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(2) : null);
+    }
+    return { label: t, data: pts, borderColor: TIER_COLORS[t], backgroundColor: TIER_COLORS[t] + '22', tension: 0.4, borderWidth: 2, pointRadius: 2, spanGaps: true };
+  });
+}
+const gridColor = 'rgba(141,160,192,0.12)';
+const tickColor = '#8DA0C0';
+function baseOpts(extra = {}) {
+  return Object.assign({
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#EAF0FB', font: { size: 12 } } } },
+    scales: {
+      x: { ticks: { color: tickColor }, grid: { color: gridColor } },
+      y: { ticks: { color: tickColor }, grid: { color: gridColor } }
+    }
+  }, extra);
+}
+function renderCharts() {
+  new Chart(document.getElementById('bandChart'), {
+    type: 'bar',
+    data: { labels: BANDS, datasets: [{ label: 'Hit rate %', data: bandHitData(), backgroundColor: css('--amber'), borderRadius: 4 }] },
+    options: baseOpts({ plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100, ticks: { color: tickColor, callback: v => v + '%' }, grid: { color: gridColor } }, x: { ticks: { color: tickColor }, grid: { display: false } } } })
+  });
+  new Chart(document.getElementById('tierChart'), {
+    type: 'bar',
+    data: { labels: BANDS, datasets: tierDistData() },
+    options: baseOpts({ indexAxis: 'y', scales: { x: { stacked: true, max: 100, ticks: { color: tickColor, callback: v => v + '%' }, grid: { color: gridColor } }, y: { stacked: true, ticks: { color: tickColor }, grid: { display: false } } } })
+  });
+  new Chart(document.getElementById('arcChart'), {
+    type: 'line',
+    data: { labels: Array.from({ length: 10 }, (_, i) => 'Y' + (i + 1)), datasets: arcData() },
+    options: baseOpts({ scales: { y: { ticks: { color: tickColor, callback: v => v + ' WS' }, grid: { color: gridColor } }, x: { ticks: { color: tickColor }, grid: { display: false } } } })
+  });
+}
+
+// ---------- sparkline ----------
+function sparkline(arc) {
+  if (!arc || arc.length < 2) return '<span style="color:var(--text-mute)">—</span>';
+  const w = 68, h = 22, max = Math.max(...arc, 0.1), min = Math.min(...arc, 0);
+  const range = (max - min) || 1;
+  const pts = arc.map((v, i) => {
+    const x = (i / (arc.length - 1)) * w;
+    const y = h - ((v - min) / range) * h;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="${css('--amber')}" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+}
+
+// ---------- player table ----------
+function badge(tier) {
+  const cls = 'b-' + tier.split(' ')[0];
+  return `<span class="badge ${cls}">${tier}</span>`;
+}
+function renderTable() {
+  const era = document.getElementById('fEra').value;
+  const tier = document.getElementById('fTier').value;
+  const band = document.getElementById('fBand').value;
+  const rows = players.filter(p =>
+    (era === 'all' || p.era === era) &&
+    (tier === 'all' || p.tier === tier) &&
+    (band === 'all' || p.band === band)
+  );
+  const body = document.getElementById('playerBody');
+  if (!rows.length) { body.innerHTML = `<tr><td colspan="12" class="empty">No players match these filters.</td></tr>`; }
+  else {
+    body.innerHTML = rows.map(p => `
+      <tr>
+        <td class="name-cell">${p.name} <span class="pick-tag">#${p.pick}</span></td>
+        <td>${p.year}</td><td>${p.team}</td>
+        <td class="num">${p.gp}</td><td class="num">${p.seasons}</td>
+        <td class="num">${p.pts}</td><td class="num">${p.reb}</td><td class="num">${p.ast}</td>
+        <td class="num">${p.bpm}</td><td class="num">${p.ws}</td>
+        <td>${badge(p.tier)}</td><td>${sparkline(p.arc)}</td>
+      </tr>`).join('');
+  }
+  document.getElementById('rowCount').textContent = rows.length;
+}
+
+// ---------- teams ----------
+function renderTeams() {
+  const teams = {};
+  players.forEach(p => {
+    (teams[p.team] = teams[p.team] || { picks: 0, ws: 0, stars: 0 });
+    teams[p.team].picks++;
+    teams[p.team].ws += p.ws;
+    if (p.tier === 'Star') teams[p.team].stars++;
+  });
+  const rows = Object.entries(teams).map(([t, d]) => ({ team: t, ...d }));
+
+  const n = rows.length;
+  const sx = rows.reduce((s, r) => s + r.picks, 0);
+  const sy = rows.reduce((s, r) => s + r.ws, 0);
+  const sxy = rows.reduce((s, r) => s + r.picks * r.ws, 0);
+  const sxx = rows.reduce((s, r) => s + r.picks * r.picks, 0);
+  const slope = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+  const intercept = (sy - slope * sx) / n;
+  const xs = rows.map(r => r.picks);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+
+  const scatter = new Chart(document.getElementById('teamScatter'), {
+    data: {
+      datasets: [
+        {
+          type: 'scatter', label: 'Teams',
+          data: rows.map(r => ({ x: r.picks, y: r.ws, team: r.team, stars: r.stars })),
+          backgroundColor: css('--amber'), pointRadius: 6, pointHoverRadius: 9,
+        },
+        {
+          type: 'line', label: 'Expected',
+          data: [{ x: xMin, y: slope * xMin + intercept }, { x: xMax, y: slope * xMax + intercept }],
+          borderColor: 'rgba(141,160,192,0.4)', borderDash: [6, 6], borderWidth: 1.5, pointRadius: 0, fill: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      onClick: (evt, elements) => {
+        if (!elements.length) return;
+        const el = elements.find(e => e.datasetIndex === 0);
+        if (!el) return;
+        const team = scatter.data.datasets[0].data[el.index].team;
+        showTeamDetail(team);
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const d = ctx.raw;
+              if (d.team === undefined) return '';
+              return `${d.team}: ${d.y.toFixed(0)} WS from ${d.x} picks · ${d.stars} stars (click for roster)`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: { title: { display: true, text: 'Second-round picks used', color: tickColor }, ticks: { color: tickColor }, grid: { color: gridColor } },
+        y: { title: { display: true, text: 'Total career Win Shares', color: tickColor }, ticks: { color: tickColor }, grid: { color: gridColor } },
+      },
+    },
+  });
+  if (rows.length) showTeamDetail(rows.sort((a, b) => b.ws - a.ws)[0].team);
+}
+
+function showTeamDetail(team) {
+  const roster = players.filter(p => p.team === team).sort((a, b) => b.ws - a.ws).slice(0, 10);
+  const rows = roster.map((p, i) =>
+    `<tr>
+      <td>${i + 1}. ${p.name} <span class="pick-tag">#${p.pick}</span>${p.international ? ' <span class="badge b-Star" style="font-size:10px">Intl</span>' : ''}</td>
+      <td>${p.year}</td>
+      <td class="num">${p.ws}</td>
+      <td>${badge(p.tier)}</td>
+    </tr>`).join('');
+  document.getElementById('teamDetail').innerHTML = `
+    <div class="card">
+      <h3>${team} — top ${roster.length} second-round picks by career WS</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Player</th><th>Yr</th><th class="num">WS</th><th>Tier</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>`;
+}
+// ---------- steals & busts ----------
+function renderSteals() {
+  const steals = [...players].sort((a, b) => b.ws - a.ws).slice(0, 10);
+  document.getElementById('stealList').innerHTML = steals.map((p, i) =>
+    `<div class="steal">
+      <div class="pk">#${p.pick}</div>
+      <div>
+        <div class="nm">${i + 1}. ${p.name}
+          <span class="pick-tag">${p.year} · ${p.team}</span>
+          ${p.international ? '<span class="badge b-Star" style="margin-left:6px">Intl</span>' : ''}
+        </div>
+        <div class="mt">${p.ws} career WS · ${p.seasons} seasons · peak BPM ${p.bpm} · ${p.tier}</div>
+      </div>
+    </div>`
+  ).join('');
+}
+
+// ---------- tabs ----------
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.pane).classList.add('active');
+  });
+});
+['fEra', 'fTier', 'fBand'].forEach(id => document.getElementById(id).addEventListener('change', renderTable));
+
+// ---------- init ----------
+document.getElementById('pickCount').textContent = players.length;
+renderKpis();
+renderCharts();
+renderTable();
+renderTeams();
+renderSteals();
+const conclusionParagraphs = [
+`I started this project because I was curious about the value of second round picks in the NBA. They get thrown around in a lot of trade deals, but I've always questioned their value because very few players from that round ever truly make it in the league. The one instance that prompted my research was this year's NBA draft in which my Spurs traded earlier into the first round with the Nuggets for three second round picks essentially. I thought that was a genius move because we got one of our off season needs in a true backup center by giving up what I felt like was nothing. However, I wanted to see if my estimation of picks in the second round was truly accurate.`,
+`My research question asked whether second round picks are worth it in the long run, and I hypothesized that the second round is mainly busts with a few exceptions just outside of the first round or players from different countries. However, it seems after conducting my research that I was missing half the picture.`,
+`International players comprised 31.9% of all second round draft picks from 2000 to 2024. I categorized a player as a "Star" if their total win shares over their career was greater than 60. Within this category, international players were slightly overrepresented at 37.5% (n=16). Four out of the top ten players in total win shares were not from the United States. However, there was an even stronger representation of international players at 43.1% (n=318) in the "Bust" category, which means they didn't even play a full half season worth of games. It seems that players from outside the United States follow a U-shaped curve in terms of their long-term performance either turning into a hit or a miss.`,
+`When it comes to players just outside the first round, I was more accurate, but still not getting the complete scope of what is really going on. A player was classified as a "Hit" if they placed into the top three tiers, which essentially means their total win shares were greater than 8. The 255 players picked within the 31-40 spots had a 29.4% hit rate with 7 "Stars", whereas the 250 players picked 41-50 had a 20.8% hit rate with 6 "Stars". There's only a ten percentage point drop off in hit rate with one less star in the second bracket, which shows I was overestimating the first tier of players in the second draft. However, it isn't that big of a deal as the final group of players picked 51-60 had another ten percentage point drop off in hit rate with only 3 "Stars". Although the star power of the first two groups are similar, there is definitely a steady decline between all three groups in terms of how many solid picks come from each.`,
+`In conclusion, what I learned from this project is that my estimation of the second round was solid, but incomplete. International players are definitely punching above their weight in terms of quality in the second round, but also are at a much bigger risk of being a bust. Additionally, players just outside the first round are stronger compared to the rest of the second, but not by that big of a margin. Overall I'd say that the Spurs getting a talented player who filled a gap in our roster in the first round beats three low future chances of picking someone in the second.`,
+];
+document.getElementById('conclusionEssay').innerHTML =
+  conclusionParagraphs.map(p => `<p>${p}</p>`).join('');
+</script>
+</body>
+</html>

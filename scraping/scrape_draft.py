@@ -78,32 +78,35 @@ def parse_draft_table(html):
         raise ValueError("Could not locate the draft table on this page.")
 
     rows = []
+    current_round = 1  # Flips to 2 when we pass the "Round 2" divider header.
     for tr in table.find("tbody").find_all("tr"):
-        # Section-separator rows (between round 1 and round 2) have a class and
-        # no data cells — skip them.
-        if tr.get("class") and "thead" in tr.get("class"):
+        pick_cell = tr.find("td", {"data-stat": "pick_overall"})
+
+        # A round-divider row has no pick cell and carries a "Round N" banner.
+        # Detect it and flip the round, then move on. (Every *player* row also
+        # has a <th> — the rank number — so we must key on the banner text and
+        # the absence of a pick cell, not just the presence of a <th>.)
+        if pick_cell is None:
+            row_text = tr.get_text(strip=True)
+            if "Round 2" in row_text:
+                current_round = 2
+            elif "Round 1" in row_text:
+                current_round = 1
             continue
 
-        pick_cell = tr.find("td", {"data-stat": "pick_overall"})
         player_cell = tr.find("td", {"data-stat": "player"})
         team_cell = tr.find("td", {"data-stat": "team_id"})
-
-        if pick_cell is None or player_cell is None:
+        if player_cell is None:
             continue
 
         link = player_cell.find("a")
-        if link is None:
-            # Drafted player who never got a Basketball Reference page.
-            slug = ""
-        else:
-            # href looks like /players/g/greendr01.html -> greendr01
-            slug = link["href"].split("/")[-1].replace(".html", "")
+        slug = link["href"].split("/")[-1].replace(".html", "") if link else ""
 
         overall_pick = int(pick_cell.get_text(strip=True))
         rows.append(
             {
                 "overall_pick": overall_pick,
-                "round": 1 if overall_pick <= 30 else 2,
+                "round": current_round,  # read from page structure, not assumed
                 "player": player_cell.get_text(strip=True),
                 "slug": slug,
                 "team": team_cell.get_text(strip=True) if team_cell else "",

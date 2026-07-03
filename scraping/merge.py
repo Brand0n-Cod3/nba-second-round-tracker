@@ -37,6 +37,27 @@ def to_float(x):
     except (ValueError, TypeError):
         return None
 
+US_AND_TERRITORY_CODES = {
+    "US",  # United States
+    "PR",  # Puerto Rico
+    "VI",  # U.S. Virgin Islands
+    "GU",  # Guam
+    "AS",  # American Samoa
+    "MP",  # Northern Mariana Islands
+}
+
+
+def is_international(country_code):
+    """True if born outside the U.S. and its territories.
+
+    Blank/unknown (empty string or NaN) defaults to domestic so players with no
+    parsed birthplace don't inflate the international count — noted as a
+    limitation.
+    """
+    if not country_code or (isinstance(country_code, float) and pd.isna(country_code)):
+        return False
+    return country_code not in US_AND_TERRITORY_CODES
+
 
 def band(pick):
     if pick <= 40:
@@ -58,6 +79,10 @@ def build_player(draft_row, seasons):
     """Combine one player's draft info + season rows into a summary dict."""
     # Keep only rows with real games played (drops 'Did not play' rows).
     played = [s for s in seasons if to_float(s.get("gp")) not in (None, 0)]
+
+    birth_country = next(
+        (s["birth_country"] for s in seasons if s.get("birth_country")), ""
+    )
 
     ws_by_season = [to_float(s["ws"]) or 0 for s in played]
     career_gp = sum(to_float(s["gp"]) or 0 for s in played)
@@ -92,6 +117,8 @@ def build_player(draft_row, seasons):
         "pick": pick,
         "year": year,
         "team": draft_row["team"],
+        "birth_country": birth_country,
+        "international": is_international(birth_country),
         "band": band(pick),
         "era": era(year),
         "gp": int(career_gp),

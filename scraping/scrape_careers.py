@@ -131,6 +131,21 @@ def parse_stat_table(table, field_map, season_key="year_id"):
 
     return seasons
 
+def parse_birth_country(soup):
+    """Return the player's birth country code from the bio, or '' if not found.
+
+    BBR encodes birthplace in a single link like
+    birthplaces.fcgi?country=US&state=WA. The link *text* is the state for
+    U.S. players (e.g. 'Washington') and the country for international players,
+    so we can't trust the text. Instead we read the country CODE from the href
+    (country=US, country=RS, ...), which is unambiguous.
+    """
+
+    link = soup.find("a", href=lambda h: h and "birthplaces.fcgi" in h and "country=" in h)
+    if not link:
+        return ""
+    m = re.search(r"country=([A-Z]{2})", link.get("href", ""))
+    return m.group(1) if m else ""
 
 def scrape_player(slug, name):
     """Return a list of per-season dicts for one player.
@@ -145,20 +160,20 @@ def scrape_player(slug, name):
     url = PLAYER_URL.format(initial=initial, slug=slug)
     cache_path = os.path.join(RAW_DIR, "players", f"{slug}.html")
     html = fetch_page(url, cache_path)
-
     if html is None:
-        return [{"slug": slug, "player": name, "season": "", "gp": "0"}]
+        return [{"slug": slug, "player": name, "birth_country": "", "season": "", "gp": "0"}]
 
     soup = BeautifulSoup(html, "lxml")
+    birth_country = parse_birth_country(soup)
     per_game = parse_stat_table(find_table(soup, "per_game_stats"), PER_GAME_FIELDS)
     advanced = parse_stat_table(find_table(soup, "advanced"), ADVANCED_FIELDS)
 
     if not per_game:
-        return [{"slug": slug, "player": name, "season": "", "gp": "0"}]
+        return [{"slug": slug, "player": name, "birth_country": birth_country, "season": "", "gp": "0"}]
 
     rows = []
     for season, pg in sorted(per_game.items()):
-        merged = {"slug": slug, "player": name}
+        merged = {"slug": slug, "player": name, "birth_country": birth_country}
         merged.update(pg)
         merged.update(advanced.get(season, {}))
         rows.append(merged)
@@ -169,6 +184,7 @@ def load_draft_players(year=None):
     path = os.path.join(PROCESSED_DIR, "draft_picks.csv")
     with open(path, newline="", encoding="utf-8") as f:
         players = list(csv.DictReader(f))
+    players = [p for p in players if p.get("slug", "").strip()]
     if year is not None:
         players = [p for p in players if int(p["draft_year"]) == year]
     return players
@@ -190,7 +206,7 @@ def main():
         print(f"[{i}/{len(players)}] {p['player']}")
         all_rows.extend(scrape_player(p["slug"], p["player"]))
 
-    fieldnames = ["slug", "player", "season", "age", "team", "gp", "mpg",
+    fieldnames = ["slug", "player", "birth_country","season", "age", "team", "gp", "mpg",
                   "pts", "reb", "ast", "stl", "blk", "per", "ts_pct",
                   "usg_pct", "ws", "ws_per_48", "bpm", "vorp"]
     out_path = os.path.join(PROCESSED_DIR, "career_seasons.csv")
